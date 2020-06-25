@@ -1,37 +1,39 @@
-podTemplate(yaml: """
+// Uses Declarative syntax to run commands inside a container.
+pipeline {
+    agent {
+        kubernetes {
+            // Rather than inline YAML, in a multibranch Pipeline you could use: yamlFile 'jenkins-pod.yaml'
+            // Or, to avoid YAML:
+            // containerTemplate {
+            //     name 'shell'
+            //     image 'ubuntu'
+            //     command 'sleep'
+            //     args 'infinity'
+            // }
+            yaml '''
 apiVersion: v1
 kind: Pod
 spec:
   containers:
-  - name: maven
-    image: maven:3.3.9-jdk-8-alpine
-    command: ['cat']
-    tty: true
-  - name: golang
-    image: golang:1.8.0
-    command: ['cat']
-    tty: true
-"""
-  ) {
-
-  node(POD_LABEL) {
-    stage('Build a Maven project') {
-      git 'https://github.com/jenkinsci/kubernetes-plugin.git'
-      container('maven') {
-        sh 'mvn -B clean package'
-      }
+  - name: shell
+    image: ubuntu
+    command:
+    - sleep
+    args:
+    - infinity
+'''
+            // Can also wrap individual steps:
+            // container('shell') {
+            //     sh 'hostname'
+            // }
+            defaultContainer 'shell'
+        }
     }
-
-    stage('Build a Golang project') {
-      git url: 'https://github.com/terraform-providers/terraform-provider-aws.git'
-      container('golang') {
-        sh """
-        mkdir -p /go/src/github.com/terraform-providers
-        ln -s `pwd` /go/src/github.com/terraform-providers/terraform-provider-aws
-        cd /go/src/github.com/terraform-providers/terraform-provider-aws && make build
-        """
-      }
+    stages {
+        stage('Main') {
+            steps {
+                sh 'hostname'
+            }
+        }
     }
-
-  }
 }
