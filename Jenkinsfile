@@ -1,24 +1,37 @@
-pipeline {
-    agent {
-        docker {
-            image 'node:6-alpine'
-            args '-p 3000:3000 -p 5000:5000' 
-        }
+podTemplate(yaml: """
+apiVersion: v1
+kind: Pod
+spec:
+  containers:
+  - name: maven
+    image: maven:3.3.9-jdk-8-alpine
+    command: ['cat']
+    tty: true
+  - name: golang
+    image: golang:1.8.0
+    command: ['cat']
+    tty: true
+"""
+  ) {
+
+  node(POD_LABEL) {
+    stage('Build a Maven project') {
+      git 'https://github.com/jenkinsci/kubernetes-plugin.git'
+      container('maven') {
+        sh 'mvn -B clean package'
+      }
     }
-    environment {
-        CI = 'true'
+
+    stage('Build a Golang project') {
+      git url: 'https://github.com/terraform-providers/terraform-provider-aws.git'
+      container('golang') {
+        sh """
+        mkdir -p /go/src/github.com/terraform-providers
+        ln -s `pwd` /go/src/github.com/terraform-providers/terraform-provider-aws
+        cd /go/src/github.com/terraform-providers/terraform-provider-aws && make build
+        """
+      }
     }
-    stages {
-        stage('Build') {
-            steps {
-                sh 'npm install'
-            }
-        }
-        stage('Test') {
-            steps {
-                //sh './jenkins/scripts/test.sh'
-                echo 'test'
-            }
-        }
-    }
+
+  }
 }
